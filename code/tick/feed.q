@@ -1,109 +1,61 @@
-/ generate data for rdb demo
+/ ===== Feed obligataire simulé : courbes OU -> prix et rendements de 12 govies -> STP =====
+system "l ",getenv[`KDBAPPCODE],"/common/fi.q";
 
-sn:2 cut (
- `AMD;"ADVANCED MICRO DEVICES";
- `AIG;"AMERICAN INTL GROUP INC";
- `AAPL;"APPLE INC COM STK";
- `DELL;"DELL INC";
- `DOW;"DOW CHEMICAL CO";
- `GOOG;"GOOGLE INC CLASS A";
- `HPQ;"HEWLETT-PACKARD CO";
- `INTC;"INTEL CORP";
- `IBM;"INTL BUSINESS MACHINES CORP";
- `MSFT;"MICROSOFT CORP")
+/ --- paramètres ---
+tenors:0.5 1 2 5 10 30f
+theta:`USD`EUR!(3.70 3.60 3.50 3.65 4.05 4.60;1.95 1.95 2.00 2.25 2.65 3.10)  / niveaux d'équilibre (%)
+crv:theta                                  / courbes courantes
+kappa:0.001                              / force de rappel par tick
+siglvl:0.3                              / vol du choc commun (pb/tick)
+sigidio:0.1                           / vol idiosyncratique par point (pb/tick)
+issuerspr:`UST`DBR`FRTR!0 0 0.70         / spread émetteur (%)
+venues:`USD`EUR!(`BTEC`TW`BBG;`MTS`TW`BBG)
+ptrade:0.3                               / probabilité d'un trade par tick
+nt:0
 
-s:first each sn
-n:last each sn
-p:33 27 84 12 20 72 36 51 42 29 / price
-m:" ABHILNORYZ" / mode
-c:" 89ABCEGJKLNOPRTWZ" / cond
-e:"NONNONONNN" / ex
-src:`BARX`GETGO`SUN`DB
-side:`buy`sell
+/ --- référentiel et flux (calculés pour la journée) ---
+bonds:("SSSSFDDJS";enlist",") 0: hsym `$getenv[`KDBAPPCONFIG],"/refdata/bonds.csv"
+bonds:update yrs:(maturity-.z.d)%365.25 from bonds
+bonds:update hs:0.004*yrs xexp 0.75, spr:issuerspr issuer from bonds   / demi-fourchette en prix, spread
+cfs:bonds[`sym]!.fi.cashflows[.z.d] each bonds
 
-/ init.q
+/ --- outils ---
+nrand:{(cos 2*acos[-1]*x?1f)*sqrt neg 2*log 1-x?1f}   / Box-Muller
+rnd:{0.001*floor 0.5+1000*x}                           / prix au millième
+mid:{[s] i:bonds[`sym]?s; .fi.pxzero[cfs s;tenors;bonds[i;`spr]+crv bonds[i;`curve]]}
 
-cnt:count s
-pi:acos -1
-gen:{exp 0.001 * normalrand x}
-normalrand:{(cos 2 * pi * x ? 1f) * sqrt neg 2 * log x ? 1f}
-randomize:{value "\\S ",string "i"$0.8*.z.p%1000000000}
-rnd:{0.01*floor 0.5+x*100}
-vol:{10+`int$x?90}
+/ --- dynamique des courbes ---
+evolve:{
+  c:first nrand 1;
+  crv::{[c;th;zz] zz+(kappa*th-zz)+0.01*(siglvl*c)+sigidio*nrand count zz}[c]'[theta;crv];}
 
-randomize[]
+/ --- publications ---
+pubquotes:{
+  s:neg[1+rand 4]?bonds`sym;
+  i:bonds[`sym]?s;
+  m:mid each s;
+  bid:rnd m-bonds[i;`hs]; ask:rnd m+bonds[i;`hs];
+  f:bonds[i;`freq];
+  byl:.fi.yld'[cfs s;f;bid]; ayl:.fi.yld'[cfs s;f;ask];
+  n:count s;
+  src:{rand venues x} each bonds[i;`curve];
+  neg[tph](".u.upd";`quote;(s;bid;ask;byl;ayl;5f*1+n?10;5f*1+n?10;src));}
 
-/ =========================================================================================
-/ generate weights to stop even distribution of counts and sizes
-weight:0.1*1+neg[cnt]?2*cnt
+pubtrade:{
+  if[ptrade<rand 1f; :()];
+  i:rand count bonds; s:bonds[i;`sym];
+  side:rand `buy`sell;
+  px:rnd $[side=`buy; mid[s]+bonds[i;`hs]; mid[s]-bonds[i;`hs]];
+  yl:.fi.yld[cfs s;bonds[i;`freq];px];
+  neg[tph](".u.upd";`trade;(enlist s;enlist px;enlist yl;enlist 1f*1+rand 25;enlist side;enlist rand venues bonds[i;`curve]));}
 
-/ assign multipliers to skew size columns
-volmap:s!neg[cnt]?weight
-bidmap:s!neg[cnt]?weight
-askmap:s!neg[cnt]?weight
+pubcurve:{
+  c:key crv;
+  neg[tph](".u.upd";`curve;(raze (count tenors)#'c; raze (count c)#enlist tenors; raze value crv));}
 
-/ returns list where count of each item is given by random permutation of integer weights
-skewitems:{[weights;items]raze weights#'neg[count items]?items}
+fitick:{evolve[]; pubquotes[]; pubtrade[]; nt::nt+1; if[0=nt mod 5; pubcurve[]];}
 
-/ skew sym counts with weighted list of indices
-weightedsyms:skewitems[`long$weight*10;til cnt]
-
-/ assign skewed side and src lists to determine probabilities of appearing
-sideweight:cnt?{x,cnt-x}'[1+til cnt-1]
-sidemap:s!skewitems[;side] each sideweight
-srcweight:1+til count src
-srcmap:s!skewitems[srcweight;] each cnt#enlist src
-
-/ =========================================================================================
-/ generate a batch of prices
-/ qx index, qb/qa margins, qp price, qn position
-batch:{
- d:gen x;
- qx::x?weightedsyms;
- qb::rnd x?1.0;
- qa::rnd x?1.0;
- n:where each qx=/:til cnt;
- s:p*prds each d n;
- qp::x#0.0;
- (qp raze n):rnd raze s;
- p::last each s;
- qn::0}
-/ gen feed for ticker plant
-
-len:10000
-batch len
-
-maxn:15 / max trades per tick
-qpt:5   / avg quotes per trade
-
-/ =========================================================================================
-t:{
- if[not (qn+x)<count qx;batch len];
- i:qx n:qn+til x;qn+:x;
- (s i;qp n;`int$volmap[s i]*x?99;1=x?20;x?c;e i;raze 1?'sidemap[s i])}
-
-q:{
- if[not (qn+x)<count qx;batch len];
- i:qx n:qn+til x;p:qp n;qn+:x;
- (s i;p-qb n;p+qa n;`long$bidmap[s i]*vol x;`long$askmap[s i]*vol x;x?m;e i;raze 1?'srcmap[s i])}
-
-feed:{h$[rand 2;
- (".u.upd";`trade;t 1+rand maxn);
- (".u.upd";`quote;q 1+rand qpt*maxn)];}
-
-feedm:{h$[rand 2;
- (".u.upd";`trade;(enlist a#x),t a:1+rand maxn);
- (".u.upd";`quote;(enlist a#x),q a:1+rand qpt*maxn)];}
-
-init:{
- o:"p"$9e5*floor (.z.P-3600000)%9e5;
- d:.z.P-o;
- len:floor d%113;
- feedm each `timestamp$o+asc len?d;}
-
-/- use the discovery service to find the tickerplant to publish data to
+/ --- connexion au tickerplant via le service de découverte, puis un tick toutes les 200 ms ---
 .servers.startupdepcycles[`segmentedtickerplant;10;0W];
-h:.servers.gethandlebytype[`segmentedtickerplant;`any]
-
-/ init 0
-.timer.repeat[.proc.cp[];0Wp;0D00:00:00.200;(`feed;`);"Publish Feed"];
+tph:.servers.gethandlebytype[`segmentedtickerplant;`any]
+.timer.repeat[.proc.cp[];0Wp;0D00:00:00.200;(`fitick;`);"Publish FI feed"];
