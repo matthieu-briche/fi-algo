@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]        # uniquement les push sur main, jamais les pull requests
+  workflow_dispatch:         # lancement manuel depuis l'onglet Actions
+
+permissions:
+  contents: read
+  checks: write             # pour publier le rapport de tests
+
+jobs:
+  unit-tests:
+    runs-on: [self-hosted, linux, kdb]
+    steps:
+      - name: Récupération du code et des sous-modules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Version de q
+        run: |
+          export PATH="$HOME/.kx/bin:$PATH"
+          echo '-1 "q ",string[.z.K]," ",string .z.k; exit 0' | q -q
+
+      - name: Tests qspec
+        run: |
+          export PATH="$HOME/.kx/bin:$PATH"
+          ./runtests.sh
+
+      - name: Rapport JUnit
+        if: always()
+        run: |
+          export PATH="$HOME/.kx/bin:$PATH"
+          ./runtests.sh --junit > report.xml || true
+
+      - name: Publication du rapport
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: report.xml
+          check_name: Tests qspec
