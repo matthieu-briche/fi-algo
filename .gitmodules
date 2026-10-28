@@ -1,0 +1,6 @@
+[submodule "tools/qutil"]
+	path = tools/qutil
+	url = https://github.com/nugend/qutil.git
+[submodule "tools/qspec"]
+	path = tools/qspec
+	url = https://github.com/nugend/qspec.git
