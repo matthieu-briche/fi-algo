@@ -172,3 +172,7 @@ The main knobs are at the top of `code/tick/feed.q`:
 ## Acknowledgements
 
 Built on the [TorQ Finance Starter Pack](https://github.com/DataIntellectTech/TorQ-Finance-Starter-Pack) by Data Intellect.
+
+## License
+
+This project is released under the [MIT License](LICENSE).
