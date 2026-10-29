@@ -11,3 +11,7 @@ curve:([] time:`timestamp$(); sym:`g#`symbol$(); tenor:`float$(); zero:`float$()
 / --- RFQ et réponses de l'algo (une ligne par événement) ---
 rfq:([] time:`timestamp$(); sym:`g#`symbol$(); rfqid:`guid$(); client:`symbol$(); side:`symbol$(); size:`float$(); venue:`symbol$(); ttl:`timespan$())
 rfqresp:([] time:`timestamp$(); sym:`g#`symbol$(); rfqid:`guid$(); status:`symbol$(); price:`float$(); yld:`float$(); mid:`float$(); skew:`float$())
+
+
+/ --- Risque publié par le moteur risk1 (une ligne par titre et par photo) ---
+risk:([] time:`timestamp$(); sym:`g#`symbol$(); ccy:`symbol$(); bucket:`symbol$(); mid:`float$(); yld:`float$(); moddur:`float$(); convex:`float$(); dv01:`float$(); nominal:`float$(); posdv01:`float$())

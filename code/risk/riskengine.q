@@ -35,4 +35,7 @@ upd:{[t;d] if[t~`quote; upd1 d];}
 bybucket:{[] select dv01:sum posdv01 by ccy:.risk.ccy sym, bucket:.risk.bucket sym from .risk.book}
 total:{[] select dv01:sum posdv01, nominal:sum nominal by ccy:.risk.ccy sym from .risk.book}
 
+/ photo du risque au format de la table risk (sans la colonne time, ajoutée par le tickerplant)
+snapshot:{[] b:0!.risk.book; (b`sym; .risk.ccy b`sym; .risk.bucket b`sym; b`mid; b`yld; b`moddur; b`convex; b`dv01; b`nominal; b`posdv01)}
+
 \d .

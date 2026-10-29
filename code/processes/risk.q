@@ -14,9 +14,16 @@ subscribe:{[]
     .sub.subscribe[`quote;`;0b;0b;first s];
     ];
   }
+  
+/ publie une photo du risque vers le tickerplant (table risk)
+pub:{[] if[count .risk.book; neg[.risk.tph](".u.upd";`risk;.risk.snapshot[])];}
+
 \d .
 
 .risk.init[getenv`KDBAPPCONFIG;.z.d];
 upd:.risk.upd;
 .servers.startup[];
 .risk.subscribe[];
+
+.risk.tph:.servers.gethandlebytype[`segmentedtickerplant;`any];
+.timer.repeat[.proc.cp[];0Wp;0D00:00:05;(`.risk.pub;`);"Publication du risque"];

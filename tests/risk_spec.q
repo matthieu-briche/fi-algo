@@ -61,3 +61,26 @@ system "l code/risk/riskengine.q";
     (.risk.total[]`EUR)[`nominal] musteq 31f;
     };
   };
+
+  
+/ le schéma de la plateforme, pour vérifier que la photo lui correspond
+system "l database.q";
+
+.tst.desc["Publication du risque .risk.snapshot"]{
+  should["préparer une photo conforme au schéma de la table risk : colonnes et types"]{
+    .risk.reset[];
+    .risk.upd1 .rktest.qt[`US10Y`DE10Y;99.98 99.70;100.02 99.74];
+    sn:.risk.snapshot[];
+    count[sn] musteq -1+count cols risk;
+    (type each sn) mustmatch type each 1_value flip risk;
+    };
+  should["contenir chaque titre avec sa devise et sa maturité"]{
+    .risk.reset[];
+    .risk.upd1 .rktest.qt[`US10Y`DE10Y;99.98 99.70;100.02 99.74];
+    sn:.risk.snapshot[];
+    sn[0] mustmatch `DE10Y`US10Y;
+    sn[1] mustmatch `EUR`USD;
+    sn[2] mustmatch `10Y`10Y;
+    sn[9] mustmatch (0!.risk.book)`posdv01;
+    };
+  };
