@@ -33,3 +33,23 @@ step:{[cfs;f;px;y] y-(pxyld[cfs;f;y]-px)%dpdy[cfs;f;y]}
 yld:{[cfs;f;px] 8 step[cfs;f;px]/ 4f}
 
 \d .
+
+/ ===== Mesures de risque (étape 11) =====
+\d .fi
+
+/ prix dirty = prix clean + coupon couru
+pxdirty:{[cfs;f;y] pxyld[cfs;f;y]+cfs`accr}
+
+/ dérivée seconde du prix par rapport au rendement (par point de % au carré)
+d2pdy2:{[cfs;f;y] sum 0.0001*cfs[`cf]*cfs[`t]*(cfs[`t]+1%f)*(1+0.01*y%f) xexp neg 2+f*cfs`t}
+
+/ duration modifiée (années)
+moddur:{[cfs;f;y] neg 100*dpdy[cfs;f;y]%pxdirty[cfs;f;y]}
+
+/ convexité (années au carré)
+convex:{[cfs;f;y] 10000*d2pdy2[cfs;f;y]%pxdirty[cfs;f;y]}
+
+/ DV01 : perte en devise pour 1 million de nominal si le rendement monte de 1 pb
+dv01:{[cfs;f;y] neg 100*dpdy[cfs;f;y]}
+
+\d .

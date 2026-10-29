@@ -57,9 +57,9 @@ system "l code/common/fi.q";
     (p~desc p) musteq 1b;
     };
   should["avoir une dérivée analytique égale à la différence finie"]{
-    y:4.25; h:1e-4;
-    fd:(.fi.pxyld[.fitest.c10;2;y+h]-.fi.pxyld[.fitest.c10;2;y-h])%2*h;
-    abs[fd-.fi.dpdy[.fitest.c10;2;y]] mustlt 1e-5;
+    yv:4.25; h:1e-4;
+    fd:(.fi.pxyld[.fitest.c10;2;yv+h]-.fi.pxyld[.fitest.c10;2;yv-h])%2*h;
+    abs[fd-.fi.dpdy[.fitest.c10;2;yv]] mustlt 1e-5;
     };
   should["retrouver le rendement à partir du prix (aller-retour Newton)"]{
     ys:0.5 2 4.25 8 12f;
@@ -82,5 +82,34 @@ system "l code/common/fi.q";
     };
   should["valoriser à la somme des flux moins le couru avec des taux nuls"]{
     .fi.pxzero[.fitest.c10;.fitest.tn;6#0f] mustwithin (sum[.fitest.c10`cf]-.fitest.c10`accr)+-1e-9 1e-9;
+    };
+  };
+  
+.tst.desc["Mesures de risque .fi.moddur / .fi.convex / .fi.dv01"]{
+  should["donner la duration exacte d'un zéro-coupon : t/(1+y/(100f))"]{
+    zc:`t`cf`accr!(enlist 5f;enlist 100f;0f);
+    abs[.fi.moddur[zc;2;4f]-5%1.02] mustlt 1e-9;
+    };
+  should["donner la convexité exacte d'un zéro-coupon : t(t+1/f)/(1+y/(100f))²"]{
+    zc:`t`cf`accr!(enlist 5f;enlist 100f;0f);
+    abs[.fi.convex[zc;2;4f]-(5*5.5)%1.02*1.02] mustlt 1e-9;
+    };
+  should["avoir une dérivée seconde égale à la différence finie"]{
+    yv:4.25; h:0.01; p:.fi.pxyld[.fitest.c10;2];
+    fd:(p[yv+h]+p[yv-h]-2*p yv)%h*h;
+    abs[fd-.fi.d2pdy2[.fitest.c10;2;yv]] mustlt 1e-5;
+    };
+  should["vérifier l'identité DV01 = duration × prix dirty"]{
+    yv:4.25;
+    abs[.fi.dv01[.fitest.c10;2;yv]-.fi.moddur[.fitest.c10;2;yv]*.fi.pxdirty[.fitest.c10;2;yv]] mustlt 1e-9;
+    };
+  should["approcher un choc de 50 pb par Taylor à l'ordre 2, bien mieux qu'à l'ordre 1"]{
+    yv:4.25; dy:0.005; p:.fi.pxdirty[.fitest.c10;2];
+    exact:(p[yv+100*dy]%p yv)-1;
+    d:.fi.moddur[.fitest.c10;2;yv]; c:.fi.convex[.fitest.c10;2;yv];
+    e1:abs exact+d*dy;
+    e2:abs exact-(neg d*dy)+0.5*c*dy*dy;
+    e2 mustlt 1e-4;
+    (e2<e1%10) musteq 1b;
     };
   };
