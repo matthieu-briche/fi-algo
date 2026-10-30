@@ -17,19 +17,19 @@ jobs:
     env:
       KDB_B64_LICENSE: ${{ secrets.KDB_B64_LICENSE }}
     steps:
-      - name: Récupération du code et des sous-modules
+      - name: Check out code and submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Vérification du secret de licence
+      - name: Check licence secret
         run: |
           if [ -z "$KDB_B64_LICENSE" ]; then
-            echo "::error::Secret KDB_B64_LICENSE absent : ajoute-le dans Settings > Secrets and variables > Actions"
+            echo "::error::KDB_B64_LICENSE secret is missing: add it under Settings > Secrets and variables > Actions"
             exit 1
           fi
 
-      - name: Installation de KDB-X
+      - name: Install KDB-X
         run: |
           curl -fsSL --retry 3 --max-time 120 -o install_kdb.sh \
             "https://portal.dl.kx.com/assets/raw/kdb-x/install_kdb/~latest~/install_kdb.sh"
@@ -38,19 +38,19 @@ jobs:
           rm -f install_kdb.sh
           echo "$HOME/.kx/bin" >> "$GITHUB_PATH"
 
-      - name: Version de q
+      - name: q version
         run: echo '-1 "q ",string[.z.K]," ",string .z.k; exit 0' | q -q
 
-      - name: Tests qspec
+      - name: Run qspec tests
         run: ./runtests.sh
 
-      - name: Rapport JUnit
+      - name: JUnit report
         if: always()
         run: ./runtests.sh --junit > report.xml || true
 
-      - name: Publication du rapport
+      - name: Publish test report
         if: always()
         uses: mikepenz/action-junit-report@v4
         with:
           report_paths: report.xml
-          check_name: Tests qspec
+          check_name: qspec tests
