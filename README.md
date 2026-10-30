@@ -1,5 +1,7 @@
 # fi-algo
 
+[![CI](https://github.com/matthieu-briche/fi-algo/actions/workflows/ci.yml/badge.svg)](https://github.com/matthieu-briche/fi-algo/actions/workflows/ci.yml)
+
 Real-time fixed income tick stack built on **kdb+/q** and the **[TorQ](https://github.com/DataIntellectTech/TorQ)** framework.
 
 A simulated feed publishes quotes, trades and zero curves for 12 government bonds (US Treasuries, German Bunds, French OATs) every 200 ms. The prices are derived from yield curves that follow a mean-reverting process, and a dedicated q library (`.fi`) handles cash flows, accrued interest and the price/yield conversions. The standard TorQ pipeline (segmented tickerplant, RDB, WDB, HDB, gateway) captures, stores and serves the data, and the schema is ready for RFQ capture and algo responses.
@@ -136,7 +138,7 @@ The specs in [`tests/fi_spec.q`](tests/fi_spec.q) cover interpolation, coupon sc
 ./runtests.sh --junit    # JUnit XML output
 ```
 
-The [CI workflow](.github/workflows/ci.yml) runs the same specs on a self-hosted runner for every push to `main`.
+The [CI workflow](.github/workflows/ci.yml) installs KDB-X on a GitHub-hosted runner and runs the same specs on every push to `main` and on pull requests, publishing a JUnit report.
 
 ## Project layout
 

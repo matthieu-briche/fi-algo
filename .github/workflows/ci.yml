@@ -2,37 +2,51 @@ name: CI
 
 on:
   push:
-    branches: [main]        # uniquement les push sur main, jamais les pull requests
-  workflow_dispatch:         # lancement manuel depuis l'onglet Actions
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
-  checks: write             # pour publier le rapport de tests
+  checks: write
 
 jobs:
   unit-tests:
-    runs-on: [self-hosted, linux, kdb]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KDB_B64_LICENSE: ${{ secrets.KDB_B64_LICENSE }}
     steps:
       - name: Récupération du code et des sous-modules
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Version de q
+      - name: Vérification du secret de licence
         run: |
-          export PATH="$HOME/.kx/bin:$PATH"
-          echo '-1 "q ",string[.z.K]," ",string .z.k; exit 0' | q -q
+          if [ -z "$KDB_B64_LICENSE" ]; then
+            echo "::error::Secret KDB_B64_LICENSE absent : ajoute-le dans Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
+      - name: Installation de KDB-X
+        run: |
+          curl -fsSL --retry 3 --max-time 120 -o install_kdb.sh \
+            "https://portal.dl.kx.com/assets/raw/kdb-x/install_kdb/~latest~/install_kdb.sh"
+          sed -i 's/curl /curl --max-time 120 --retry 3 --retry-delay 5 /g' install_kdb.sh
+          TERM=dumb bash install_kdb.sh -y --b64lic "$KDB_B64_LICENSE" < /dev/null
+          rm -f install_kdb.sh
+          echo "$HOME/.kx/bin" >> "$GITHUB_PATH"
+
+      - name: Version de q
+        run: echo '-1 "q ",string[.z.K]," ",string .z.k; exit 0' | q -q
 
       - name: Tests qspec
-        run: |
-          export PATH="$HOME/.kx/bin:$PATH"
-          ./runtests.sh
+        run: ./runtests.sh
 
       - name: Rapport JUnit
         if: always()
-        run: |
-          export PATH="$HOME/.kx/bin:$PATH"
-          ./runtests.sh --junit > report.xml || true
+        run: ./runtests.sh --junit > report.xml || true
 
       - name: Publication du rapport
         if: always()
