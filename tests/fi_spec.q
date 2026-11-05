@@ -11,26 +11,26 @@ system "l code/common/fi.q";                 / library under test (.fi namespace
 
 / --- linear interpolation ---
 .tst.desc["Interpolation .fi.interp"]{
-  should["retrouver les valeurs aux points de la grille"]{
+  should["return the values at the grid points"]{
     .fi.interp[.fitest.tn;1 2 3 4 5 6f;.fitest.tn] mustmatch 1 2 3 4 5 6f;     / grid points give back their own values
     };
-  should["interpoler linéairement entre deux points"]{
+  should["interpolate linearly between two points"]{
     .fi.interp[.fitest.tn;1 2 3 4 5 6f;1.5 7f] mustmatch 2.5 4.4;            / 1.5y between 1y and 2y; 7y between 5y and 10y
     };
-  should["extrapoler à plat hors de la grille"]{
+  should["extrapolate flat outside the grid"]{
     .fi.interp[.fitest.tn;1 2 3 4 5 6f;0.1 40f] mustmatch 1 6f;              / before the first / after the last point: end values
     };
   };
 
 / --- coupon schedule ---
-.tst.desc["Échéancier .fi.sched"]{
-  should["finir à la maturité, avec des dates futures et croissantes"]{
+.tst.desc["Schedule .fi.sched"]{
+  should["end at maturity, with future and increasing dates"]{
     s:.fi.sched[.fitest.vd;2036.11.15;2];                                    / semi-annual bond maturing 15 Nov 2036
     last[s`next] musteq 2036.11.15;                                          / last date is the maturity
     (s[`next]~asc s`next) musteq 1b;                                         / dates are in ascending order
     all[s[`next]>.fitest.vd] musteq 1b;                                      / and all after the valuation date
     };
-  should["placer le coupon précédent 6 mois avant le suivant (semestriel)"]{
+  should["place the previous coupon 6 months before the next one (semi-annual)"]{
     s:.fi.sched[.fitest.vd;2036.11.15;2];
     s[`prev] musteq .Q.addmonths[first s`next;-6];                           / previous coupon = next coupon - 6 months
     (s[`prev]<=.fitest.vd) musteq 1b;                                        / and on or before the valuation date
@@ -38,39 +38,39 @@ system "l code/common/fi.q";                 / library under test (.fi namespace
   };
 
 / --- cashflows ---
-.tst.desc["Flux .fi.cashflows"]{
-  should["générer 21 flux pour un 10 ans semestriel"]{
+.tst.desc["Cashflows .fi.cashflows"]{
+  should["generate 21 flows for a semi-annual 10-year bond"]{
     count[.fitest.c10`t] musteq 21;                                          / 21 remaining semi-annual dates
     };
-  should["verser les coupons puis le nominal à maturité"]{
+  should["pay the coupons and then the principal at maturity"]{
     (-1_.fitest.c10`cf) mustmatch 20#2.125;                                  / 20 coupons of 4.25/2
     last[.fitest.c10`cf] musteq 102.125;                                     / last flow = coupon + 100 of principal
     };
-  should["avoir un coupon couru compris entre 0 et un coupon"]{
+  should["have accrued interest between 0 and one coupon"]{
     .fitest.c10[`accr] mustwithin 0 2.125;                                   / accrued is between 0 and one full coupon
     };
   };
 
 / --- price/yield conversions ---
-.tst.desc["Prix et rendement .fi.pxyld / .fi.yld"]{
-  should["valoriser au pair un titre dont le rendement égale le coupon"]{
+.tst.desc["Price and yield .fi.pxyld / .fi.yld"]{
+  should["price a bond at par when its yield equals the coupon"]{
     .fi.pxyld[.fitest.c10;2;4.25] mustwithin 99.98 100.02;                   / yield = coupon -> clean price at par
     };
-  should["faire baisser le prix quand le rendement monte"]{
+  should["lower the price when the yield rises"]{
     p:.fi.pxyld[.fitest.c10;2] each 1 3 5 7f;                                / prices for increasing yields
     (p~desc p) musteq 1b;                                                    / are strictly decreasing
     };
-  should["avoir une dérivée analytique égale à la différence finie"]{
+  should["have an analytical derivative equal to the finite difference"]{
     yv:4.25; h:1e-4;
     fd:(.fi.pxyld[.fitest.c10;2;yv+h]-.fi.pxyld[.fitest.c10;2;yv-h])%2*h;     / central finite difference
     abs[fd-.fi.dpdy[.fitest.c10;2;yv]] mustlt 1e-5;                          / matches the analytical derivative
     };
-  should["retrouver le rendement à partir du prix (aller-retour Newton)"]{
+  should["recover the yield from the price (Newton round trip)"]{
     ys:0.5 2 4.25 8 12f;                                                     / a range of yields
     ps:.fi.pxyld[.fitest.c10;2] each ys;                                     / yield -> price
     max[abs ys-.fi.yld[.fitest.c10;2] each ps] mustlt 1e-8;                  / price -> yield gives back the start
     };
-  should["converger pour les 12 titres du référentiel"]{
+  should["converge for the 12 reference bonds"]{
     cs:.fi.cashflows[.fitest.vd] each .fitest.bonds;                         / cashflows of every bond
     f:.fitest.bonds`freq;
     ps:.fi.pxyld'[cs;f;3f];                                                  / price of each bond at a 3% yield
@@ -79,37 +79,37 @@ system "l code/common/fi.q";                 / library under test (.fi namespace
   };
 
 / --- pricing on a zero curve ---
-.tst.desc["Prix sur courbe zéro .fi.pxzero"]{
-  should["égaler le prix au rendement semestriel équivalent sur une courbe plate"]{
+.tst.desc["Zero-curve price .fi.pxzero"]{
+  should["equal the price at the equivalent semi-annual yield on a flat curve"]{
     r:4.25;                                                                  / flat continuous zero rate
     yeq:200*exp[0.005*r]-1;                                                  / equivalent semi-annual yield: 2*(exp(r/2)-1), in %
     abs[.fi.pxzero[.fitest.c10;.fitest.tn;6#r]-.fi.pxyld[.fitest.c10;2;yeq]] mustlt 1e-9;  / both prices agree
     };
-  should["valoriser à la somme des flux moins le couru avec des taux nuls"]{
+  should["price at the sum of flows minus accrued with zero rates"]{
     .fi.pxzero[.fitest.c10;.fitest.tn;6#0f] mustwithin (sum[.fitest.c10`cf]-.fitest.c10`accr)+-1e-9 1e-9;  / zero rates: no discounting
     };
   };
 
 / --- risk measures ---
-.tst.desc["Mesures de risque .fi.moddur / .fi.convex / .fi.dv01"]{
-  should["donner la duration exacte d'un zéro-coupon : t/(1+y/(100f))"]{
+.tst.desc["Risk measures .fi.moddur / .fi.convex / .fi.dv01"]{
+  should["give the exact duration of a zero-coupon bond: t/(1+y/(100f))"]{
     zc:`t`cf`accr!(enlist 5f;enlist 100f;0f);                                / 5-year zero-coupon: a single flow of 100
     abs[.fi.moddur[zc;2;4f]-5%1.02] mustlt 1e-9;                             / closed form: 5/(1+0.04/2)
     };
-  should["donner la convexité exacte d'un zéro-coupon : t(t+1/f)/(1+y/(100f))²"]{
+  should["give the exact convexity of a zero-coupon bond: t(t+1/f)/(1+y/(100f))²"]{
     zc:`t`cf`accr!(enlist 5f;enlist 100f;0f);
     abs[.fi.convex[zc;2;4f]-(5*5.5)%1.02*1.02] mustlt 1e-9;                  / closed form: 5*5.5/1.02^2
     };
-  should["avoir une dérivée seconde égale à la différence finie"]{
+  should["have a second derivative equal to the finite difference"]{
     yv:4.25; h:0.01; p:.fi.pxyld[.fitest.c10;2];                             / p: price as a function of the yield (projection)
     fd:(p[yv+h]+p[yv-h]-2*p yv)%h*h;                                         / central second difference
     abs[fd-.fi.d2pdy2[.fitest.c10;2;yv]] mustlt 1e-5;                        / matches the analytical second derivative
     };
-  should["vérifier l'identité DV01 = duration × prix dirty"]{
+  should["satisfy the identity DV01 = duration × dirty price"]{
     yv:4.25;
     abs[.fi.dv01[.fitest.c10;2;yv]-.fi.moddur[.fitest.c10;2;yv]*.fi.pxdirty[.fitest.c10;2;yv]] mustlt 1e-9;
     };
-  should["approcher un choc de 50 pb par Taylor à l'ordre 2, bien mieux qu'à l'ordre 1"]{
+  should["approximate a 50 bp shock by 2nd-order Taylor, far better than 1st order"]{
     yv:4.25; dy:0.005; p:.fi.pxdirty[.fitest.c10;2];                         / 50 bp shock (dy as a decimal)
     exact:(p[yv+100*dy]%p yv)-1;                                             / exact relative price change
     d:.fi.moddur[.fitest.c10;2;yv]; c:.fi.convex[.fitest.c10;2;yv];

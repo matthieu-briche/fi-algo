@@ -1,10 +1,10 @@
 #!/bin/bash
-# Usage : depuis fiapp/, lancer "source ./setenv.sh"
+# Usage: from fiapp/, run "source ./setenv.sh"
 dirpath="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-export TORQHOME="$(cd "${dirpath}/../TorQ" && pwd)"   # framework (non modifié)
-export TORQAPPHOME="${dirpath}"                        # application (dépôt Git)
-export TORQDATAHOME="$(cd "${dirpath}/../data" && pwd)" # données (hors Git)
+export TORQHOME="$(cd "${dirpath}/../TorQ" && pwd)"   # framework (unmodified)
+export TORQAPPHOME="${dirpath}"                        # application (Git repository)
+export TORQDATAHOME="$(cd "${dirpath}/../data" && pwd)" # data (outside Git)
 
 export KDBCONFIG=${TORQHOME}/config
 export KDBCODE=${TORQHOME}/code
@@ -32,7 +32,7 @@ export DOGSTATSD_PORT=8125
 
 mkdir -p ${KDBLOG} ${KDBHDB} ${KDBTPLOG}
 
-# torq.sh recharge le fichier désigné par SETENV : on le fait pointer ici
+# torq.sh reloads the file named by SETENV: point it here
 export SETENV=${TORQAPPHOME}/setenv.sh
 
 # raccourci : "torq start all", "torq summary"...

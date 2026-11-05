@@ -18,7 +18,7 @@ tptypes:@[value;`tptypes;`segmentedtickerplant];
 subscribe:{[]
   .servers.startupdepcycles[tptypes;10;0W];                    / wait for the tickerplant, retrying every 10 s, no attempt limit (0W)
   if[count s:.sub.getsubscriptionhandles[tptypes;();()!()];    / get handles of matching processes (any name, no attribute filter); proceed if at least one
-    .lg.o[`subscribe;"tickerplant trouvé, abonnement aux quotes"];  / info log message
+    .lg.o[`subscribe;"tickerplant found, subscribing to quotes"];  / info log message
     .sub.subscribe[`quote;`;0b;0b;first s];                    / subscribe to the quote table, all syms (`), don't set schema (0b), don't replay the log (0b), on the first process found
     ];
   }
